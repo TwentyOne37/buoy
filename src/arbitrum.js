@@ -8,7 +8,7 @@ let arbitrumWallet;
 const INCH_API_URL = "https://api.1inch.dev/swap/v6.0/42161"; // Arbitrum
 const INCH_API_KEY = process.env.INCH_API_KEY;
 const USDC_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // USDC on Arbitrum
-const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"; // ETH address for 1inch API
+const ETH_ADDRESS = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"; // ETH address for 1inch API
 
 function setupArbitrumConnection() {
   arbitrumProvider = new ethers.JsonRpcProvider(process.env.ARBITRUM_RPC_URL);
@@ -28,6 +28,20 @@ async function swapUSDCToETH(amountUSDC) {
   const toTokenAddress = ETH_ADDRESS;
   const fromAddress = arbitrumWallet.address;
   const amount = ethers.parseUnits(amountUSDC.toString(), 6); // USDC has 6 decimals
+
+  // Check current allowance
+  const currentAllowance = await checkTokenAllowance(
+    fromTokenAddress,
+    fromAddress
+  );
+
+  if (currentAllowance < amount) {
+    console.log("Insufficient allowance. Approving more tokens...");
+    await approveToken(fromTokenAddress, amount);
+  } else {
+    console.log("Sufficient allowance detected.");
+  }
+  console.log("after checking allowance");
 
   // 2. Get swap data from 1inch API
   const swapParams = new URLSearchParams({
@@ -98,6 +112,42 @@ async function transferETH(toAddress, amount) {
   console.log("Transaction confirmed");
 
   return tx.hash;
+}
+
+async function checkTokenAllowance(tokenAddress, walletAddress) {
+  const contract = new ethers.Contract(
+    tokenAddress,
+    [
+      "function allowance(address owner, address spender) view returns (uint256)",
+    ],
+    arbitrumProvider
+  );
+
+  const currentAllowance = await contract.allowance(
+    walletAddress,
+    process.env.INCH_ROUTER_ADDRESS
+  );
+
+  console.log(
+    `Current allowance for ${walletAddress} is: ${currentAllowance.toString()}`
+  );
+
+  return currentAllowance;
+}
+
+async function approveToken(tokenAddress, amount) {
+  const tokenContract = new ethers.Contract(
+    tokenAddress,
+    ["function approve(address spender, uint amount) returns (bool)"],
+    arbitrumWallet
+  );
+
+  const tx = await tokenContract.approve(
+    process.env.INCH_ROUTER_ADDRESS,
+    amount
+  );
+  await tx.wait();
+  console.log("Approval transaction hash:", tx.hash);
 }
 
 module.exports = {
