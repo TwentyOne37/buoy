@@ -156,10 +156,21 @@ async function handleCrossChainTransfer(data: Data, ws: WebSocket) {
     }, 5000);
 }
 
+app.use(cors({
+    origin: 'http://localhost:9000'
+}));
+
 // HTTP routes
 app.get("/", (req, res) => {
     res.send("CCTP Transfer Service is running");
 });
+
+
+
+app.post("/burn_deposit", async (req, res) => {
+    await depositForBurn()
+    res.json({message: 'Success'});
+})
 
 // Start the server
 const PORT = process.env.PORT || 3000;
