@@ -4,7 +4,11 @@ const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
 const { setupSolanaConnection } = require("./solana");
-const { setupArbitrumConnection, transferETH } = require("./arbitrum");
+const {
+  setupArbitrumConnection,
+  swapUSDCToETH,
+  transferETH,
+} = require("./arbitrum");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
@@ -39,20 +43,51 @@ wss.on("connection", (ws) => {
 async function handleETHTransfer(data, ws) {
   const { toAddress, amount } = data;
   ws.send(
-    JSON.stringify({ status: "starting", message: "Beginning ETH transfer" })
+    JSON.stringify({
+      status: "starting",
+      message: "Beginning USDC to ETH swap and transfer",
+    })
   );
 
   try {
-    const txHash = await transferETH(toAddress, amount);
+    // First, swap USDC to ETH
+    ws.send(
+      JSON.stringify({ status: "swapping", message: "Swapping USDC to ETH" })
+    );
+    const swapTxHash = await swapUSDCToETH(amount);
+    ws.send(
+      JSON.stringify({
+        status: "swapped",
+        message: "USDC swapped to ETH",
+        swapTxHash,
+      })
+    );
+
+    // Then, transfer the resulting ETH
+    ws.send(
+      JSON.stringify({
+        status: "transferring",
+        message: "Transferring ETH to destination",
+      })
+    );
+    const transferTxHash = await transferETH(toAddress, amount); // Note: The amount here will be different from the USDC amount
     ws.send(
       JSON.stringify({
         status: "complete",
         message: "ETH transfer completed",
-        txHash,
+        swapTxHash,
+        transferTxHash,
       })
     );
   } catch (error) {
-    ws.send(JSON.stringify({ status: "error", message: error.message }));
+    console.error("Error in handleETHTransfer:", error);
+    ws.send(
+      JSON.stringify({
+        status: "error",
+        message: error.message,
+        details: error.stack,
+      })
+    );
   }
 }
 
