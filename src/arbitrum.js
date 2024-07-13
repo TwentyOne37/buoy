@@ -8,7 +8,7 @@ let arbitrumWallet;
 const INCH_API_URL = "https://api.1inch.dev/swap/v6.0/42161"; // Arbitrum
 const INCH_API_KEY = process.env.INCH_API_KEY;
 const USDC_ADDRESS = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"; // USDC on Arbitrum
-const ETH_ADDRESS = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"; // ETH address for 1inch API
+const WETH_ADDRESS = "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1"; // WETH on Arbitrum
 
 function setupArbitrumConnection() {
   arbitrumProvider = new ethers.JsonRpcProvider(process.env.ARBITRUM_RPC_URL);
@@ -19,14 +19,16 @@ function setupArbitrumConnection() {
   console.log("Arbitrum connection established");
 }
 
-async function swapUSDCToETH(amountUSDC) {
+async function swapUSDCToWETH(amountUSDC) {
   if (!arbitrumWallet) {
     throw new Error("Arbitrum wallet not initialized");
   }
 
   const fromTokenAddress = USDC_ADDRESS;
-  const toTokenAddress = ETH_ADDRESS;
+  const toTokenAddress = WETH_ADDRESS;
   const fromAddress = arbitrumWallet.address;
+
+  // Ensure amountUSDC is a string and has the correct number of decimal places
   const amount = ethers.parseUnits(amountUSDC.toString(), 6); // USDC has 6 decimals
 
   // Check current allowance
@@ -83,16 +85,52 @@ async function swapUSDCToETH(amountUSDC) {
         gasLimit: swapData.tx.gas,
       });
 
+      console.log("Transaction sent:", tx);
+
       const receipt = await tx.wait();
-      console.log("Swap transaction confirmed:", receipt.transactionHash);
-      return receipt.transactionHash;
+      console.log("Transaction receipt:", receipt);
+
+      const transactionHash = receipt.hash || tx.hash;
+      console.log("Swap transaction confirmed:", transactionHash);
+
+      // Ensure toTokenAmount is properly formatted
+      const wethAmount = ethers.formatUnits(swapData.dstAmount || "0", 18);
+
+      console.log("Swap result:", { transactionHash, wethAmount });
+
+      // Return both the transaction hash and the amount of WETH received
+      return {
+        transactionHash,
+        wethAmount,
+      };
     } else {
       throw new Error("Swap data does not contain transaction information");
     }
   } catch (error) {
-    console.error("Error in swapUSDCToETH:", error);
+    console.error("Error in swapUSDCToWETH:", error);
     throw error;
   }
+}
+
+async function unwrapWETH(amount) {
+  if (!arbitrumWallet) {
+    throw new Error("Arbitrum wallet not initialized");
+  }
+
+  const wethContract = new ethers.Contract(
+    WETH_ADDRESS,
+    ["function withdraw(uint wad) public"],
+    arbitrumWallet
+  );
+
+  const amountWei = ethers.parseEther(amount.toString());
+
+  console.log(`Unwrapping ${amount} WETH to ETH...`);
+  const tx = await wethContract.withdraw(amountWei);
+  await tx.wait();
+  console.log(`Unwrapped ${amount} WETH to ETH. Transaction hash: ${tx.hash}`);
+
+  return tx.hash;
 }
 
 async function transferETH(toAddress, amount) {
@@ -107,9 +145,9 @@ async function transferETH(toAddress, amount) {
     value: amountWei,
   });
 
-  console.log(`Transaction hash: ${tx.hash}`);
+  console.log(`ETH Transfer transaction hash: ${tx.hash}`);
   await tx.wait();
-  console.log("Transaction confirmed");
+  console.log("ETH Transfer transaction confirmed");
 
   return tx.hash;
 }
@@ -152,6 +190,7 @@ async function approveToken(tokenAddress, amount) {
 
 module.exports = {
   setupArbitrumConnection,
-  swapUSDCToETH,
+  swapUSDCToWETH,
+  unwrapWETH,
   transferETH,
 };

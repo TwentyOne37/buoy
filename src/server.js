@@ -6,8 +6,9 @@ const WebSocket = require("ws");
 const { setupSolanaConnection } = require("./solana");
 const {
   setupArbitrumConnection,
-  swapUSDCToETH,
+  swapUSDCToWETH,
   transferETH,
+  unwrapWETH,
 } = require("./arbitrum");
 const app = express();
 const server = http.createServer(app);
@@ -45,37 +46,68 @@ async function handleETHTransfer(data, ws) {
   ws.send(
     JSON.stringify({
       status: "starting",
-      message: "Beginning USDC to ETH swap and transfer",
+      message: "Beginning USDC to ETH swap, unwrap, and transfer",
     })
   );
 
   try {
-    // First, swap USDC to ETH
+    // First, swap USDC to WETH
     ws.send(
-      JSON.stringify({ status: "swapping", message: "Swapping USDC to ETH" })
+      JSON.stringify({ status: "swapping", message: "Swapping USDC to WETH" })
     );
-    const swapTxHash = await swapUSDCToETH(amount);
+    const swapResult = await swapUSDCToWETH(amount);
+    console.log("Swap result received:", swapResult);
+
+    if (
+      !swapResult ||
+      (!swapResult.transactionHash && !swapResult.wethAmount)
+    ) {
+      throw new Error("Swap failed or returned unexpected result");
+    }
+
+    const { transactionHash: swapTxHash, wethAmount } = swapResult;
     ws.send(
       JSON.stringify({
         status: "swapped",
-        message: "USDC swapped to ETH",
-        swapTxHash,
+        message: `USDC swapped to ${wethAmount || "unknown amount of"} WETH`,
+        swapTxHash: swapTxHash || "unknown",
       })
     );
 
-    // Then, transfer the resulting ETH
+    if (!wethAmount || parseFloat(wethAmount) === 0) {
+      throw new Error("No WETH received from swap");
+    }
+
+    // Then, unwrap WETH to ETH
+    ws.send(
+      JSON.stringify({
+        status: "unwrapping",
+        message: "Unwrapping WETH to ETH",
+      })
+    );
+    const unwrapTxHash = await unwrapWETH(wethAmount);
+    ws.send(
+      JSON.stringify({
+        status: "unwrapped",
+        message: "WETH unwrapped to ETH",
+        unwrapTxHash,
+      })
+    );
+
+    // Finally, transfer the ETH
     ws.send(
       JSON.stringify({
         status: "transferring",
         message: "Transferring ETH to destination",
       })
     );
-    const transferTxHash = await transferETH(toAddress, amount); // Note: The amount here will be different from the USDC amount
+    const transferTxHash = await transferETH(toAddress, wethAmount);
     ws.send(
       JSON.stringify({
         status: "complete",
         message: "ETH transfer completed",
-        swapTxHash,
+        swapTxHash: swapTxHash || "unknown",
+        unwrapTxHash,
         transferTxHash,
       })
     );
