@@ -10,7 +10,7 @@ import { TokenMessengerMinter } from './target/types/token_messenger_minter';
 
 export const IRIS_API_URL = process.env.IRIS_API_URL ?? "https://iris-api-sandbox.circle.com";
 export const SOLANA_SRC_DOMAIN_ID = 5;
-export const SOLANA_USDC_ADDRESS = process.env.SOLANA_USDC_ADDRESS ?? "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU";
+export const SOLANA_USDC_ADDRESS = process.env.SOLANA_USDC_ADDRESS;
 
 export interface FindProgramAddressResponse {
     publicKey: anchor.web3.PublicKey;

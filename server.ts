@@ -66,6 +66,7 @@ async function handleETHTransfer(data: Data, ws: WebSocket) {
     ws.send(
       JSON.stringify({status: "swapping", message: "Swapping USDC to WETH"})
     );
+    console.log('Amount: ', amount);
     const swapResult = await swapUSDCToWETH(amount);
     console.log("Swap result received:", swapResult);
 
@@ -169,23 +170,24 @@ app.get("/", (req, res) => {
 
 
 app.post("/burn_deposit", async (req, res) => {
-  const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
-  const { base64Transaction } = req.body;
+  const connection = new Connection(clusterApiUrl('mainnet-beta'), 'confirmed');
+  const { base64Transaction, amount, recipientAddress } = req.body;
 
-  const recoveredTransaction = Transaction.from(
-    Buffer.from(base64Transaction as string, 'base64')
-  );
-
-  try {
-    const signature = await sendAndConfirmRawTransaction(
-      connection,
-      recoveredTransaction.serialize()
-    );
-    console.log('Transaction confirmed. Signature:', signature);
-  } catch (error) {
-    console.error('Error sending transaction:', error);
-    throw error;
-  }
+  console.log('Amount: ', amount, 'Recipient address: ', recipientAddress);
+  // const recoveredTransaction = Transaction.from(
+  //   Buffer.from(base64Transaction as string, 'base64')
+  // );
+  //
+  // try {
+  //   const signature = await sendAndConfirmRawTransaction(
+  //     connection,
+  //     recoveredTransaction.serialize()
+  //   );
+  //   console.log('Transaction confirmed. Signature:', signature);
+  // } catch (error) {
+  //   console.error('Error sending transaction:', error);
+  //   throw error;
+  // }
 
   const result = await depositForBurn()
   await mintToken(result.attestation, result.message)

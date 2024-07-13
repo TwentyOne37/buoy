@@ -14,8 +14,7 @@ const waitForTransaction = async(web3: Web3, txHash: string) => {
 }
 
 export const mintToken = async(attestationSignature: string, messageBytes: string) => {
-    const web3 = new Web3(process.env.ETH_TESTNET_RPC as string);
-    console.log('Priv key: ', process.env.ARBITRUM_SERVICE_WALLET_PRIVATE_KEY)
+    const web3 = new Web3(process.env.ETH_RPC as string);
     const arbSigner = web3.eth.accounts.privateKeyToAccount(process.env.ARBITRUM_SERVICE_WALLET_PRIVATE_KEY as string);
     web3.eth.accounts.wallet.add(arbSigner);
 

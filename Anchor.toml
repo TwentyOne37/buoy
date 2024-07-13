@@ -7,4 +7,4 @@ message_transmitter = "CCTPmbSD7gX1bxKPAmg77w8oFzNFpaQiQUWD43TKaecd"
 token_messenger_minter = "CCTPiPYPc6AsJuwueEnWgSgucamXDZwBd53dQ11YiKX3"
 
 [provider]
-cluster = "Devnet"
+cluster = "https://mainnet.helius-rpc.com/?api-key=a2a4b488-4dea-472e-ab8a-4268a9c5c78c"

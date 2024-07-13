@@ -38,65 +38,6 @@ interface SwapTransactionResponse {
   swapTransaction: string;
 }
 
-export async function swapTokenToUSDC(
-  amount: bigint,
-  recipientPublicKey: string,
-  ws: WebSocket
-): Promise<string> {
-  if (!solanaConnection) {
-    throw new Error("Solana connection not established");
-  }
-
-  try {
-    // Step 1: Fetch swap info
-    const quoteResponse = await fetchSwapInfo(amount);
-
-    // Step 2: Fetch the swap transaction
-    const swapUser = serviceWallet; // Use the service wallet
-    const recipientUSDCAccount = await getAssociatedTokenAddress(
-      USDC_MINT,
-      new PublicKey(recipientPublicKey),
-      true,
-      TOKEN_PROGRAM_ID,
-      ASSOCIATED_TOKEN_PROGRAM_ID
-    );
-
-    const { swapTransaction } = await fetchSwapTransaction(
-      swapUser,
-      recipientUSDCAccount,
-      quoteResponse
-    );
-
-    ws.send(
-      JSON.stringify({
-        status: "progress",
-        message: "Swap transaction created",
-      })
-    );
-
-    // Step 3: Send the transaction to the Solana blockchain
-    const signature = await sendTransaction(swapTransaction, swapUser);
-
-    ws.send(
-      JSON.stringify({
-        status: "complete",
-        message: `Swap completed. Transaction signature: ${signature}`,
-      })
-    );
-
-    return signature;
-  } catch (error) {
-    console.error("Error in swapTokenToUSDC:", error);
-    ws.send(
-      JSON.stringify({
-        status: "error",
-        message: `Swap failed: ${error.message}`,
-      })
-    );
-    throw error;
-  }
-}
-
 async function fetchSwapInfo(amount: bigint) {
   const response = await fetch(
     `https://quote-api.jup.ag/v6/quote?inputMint=${WIF_MINT.toBase58()}&outputMint=${USDC_MINT.toBase58()}&amount=${amount.toString()}&swapMode=ExactIn&slippageBps=50`
