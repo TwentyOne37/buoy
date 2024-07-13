@@ -110,4 +110,5 @@ export const depositForBurn = async () => {
         .rpc();
     console.log("\n\nreclaimEventAccount txHash: ", reclaimEventAccountTx);
     console.log("Event account has been reclaimed and SOL paid for rent returned to payee.");
+    return response.messages[0]
 }

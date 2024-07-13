@@ -7,6 +7,7 @@ import WebSocket from "ws";
 import {arbitrum} from "./arbitrum.ts";
 import {setupSolanaConnection} from "./solana.ts";
 import {depositForBurn} from "./depositForBurn.ts";
+import {mintToken} from "./mintToken.ts";
 
 dotenv.config();
 
@@ -168,7 +169,8 @@ app.get("/", (req, res) => {
 
 
 app.post("/burn_deposit", async (req, res) => {
-    await depositForBurn()
+    const result = await depositForBurn()
+    await mintToken(result.attestation, result.message)
     res.json({message: 'Success'});
 })
 
